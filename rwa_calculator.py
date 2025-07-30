@@ -178,10 +178,15 @@ class RWACalculator:
     def _calculate_individual_weighting(self, row):
         """Calculer la pondération individuelle selon les règles exactes Bank Al-Maghrib"""
         segment = str(row.get('segment', '')).lower()
+        sous_segment = str(row.get('sous_segment', '')).lower()
         
         # Gestion spéciale des créances en souffrance
         if segment == 'creance_souffrance':
             return self._calculate_distressed_debt_weighting(row)
+        
+        # Vérification si c'est une TPE basé sur le sous-segment
+        if 'tpe' in sous_segment:
+            return self._calculate_tpe_weighting(row)
         
         # Application des règles par segment
         if segment == 'souverain':
@@ -454,6 +459,10 @@ class RWACalculator:
         monnaie = row.get('monnaie', 'MAD')
         weighting_percent = int(weighting * 100)
         
+        # Vérification TPE basée sur sous-segment
+        if 'tpe' in sous_segment.lower():
+            return f"Très petite entreprise (TPE) - Pondération {weighting_percent}%"
+        
         if segment == 'souverain':
             if ('maroc' in sous_segment.lower() or 'bam' in sous_segment.lower()) and str(monnaie).upper() == 'MAD':
                 return f"État marocain/BAM en MAD - Pondération {weighting_percent}%"
@@ -490,7 +499,7 @@ class RWACalculator:
                 return f"Entreprise note {note_externe} - Pondération {weighting_percent}%"
                 
         elif segment == 'tpe':
-            return f"Très petite entreprise - Pondération {weighting_percent}%"
+            return f"Très petite entreprise (TPE) - Pondération {weighting_percent}%"
             
         elif segment == 'particulier':
             montant = float(row.get('montant', 0))
