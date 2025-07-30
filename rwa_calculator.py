@@ -49,7 +49,10 @@ class RWACalculator:
             },
             
             # G) Créances sur TPE et particuliers
-            'tpe_particulier': {
+            'tpe': {
+                'default': 0.75  # 75% pour très petites entreprises
+            },
+            'particulier': {
                 'default': 0.75,  # 75%
                 'over_1m_mad': 1.0  # 100% pour montants > 1M MAD
             },
@@ -73,6 +76,7 @@ class RWACalculator:
         for idx, row in df.iterrows():
             weighting = self._calculate_individual_weighting(row)
             rwa = row['montant'] * weighting
+            rule_explanation = self._get_rule_explanation(row, weighting)
             
             results.append({
                 'index': idx,
@@ -81,6 +85,7 @@ class RWACalculator:
                 'montant': row['montant'],
                 'ponderation': weighting,
                 'rwa': rwa,
+                'regle': rule_explanation,
                 'note_externe': row.get('note_externe', ''),
                 'monnaie': row.get('monnaie', ''),
                 'echeance': row.get('echeance', '')
@@ -139,6 +144,38 @@ class RWACalculator:
             return self._calculate_real_estate_weighting(row)
         else:
             return 1.0  # Pondération par défaut 100%
+    
+    def _get_rule_explanation(self, row, weighting):
+        """Générer l'explication de la règle appliquée"""
+        segment_raw = row.get('segment', '')
+        segment = str(segment_raw).lower().replace(' ', '_') if pd.notna(segment_raw) else ''
+        sous_segment_raw = row.get('sous_segment', '')
+        sous_segment = str(sous_segment_raw).lower() if pd.notna(sous_segment_raw) else ''
+        note_externe = row.get('note_externe', 'Pas de notation')
+        
+        weighting_percent = int(weighting * 100)
+        
+        if segment == 'souverain':
+            if 'maroc' in sous_segment or 'bam' in sous_segment:
+                return f"État souverain note {note_externe} - Pondération {weighting_percent}%"
+            else:
+                return f"État souverain note {note_externe} - Pondération {weighting_percent}%"
+        elif segment == 'organisme_public':
+            return f"Organisme public - Pondération {weighting_percent}%"
+        elif segment == 'bmd':
+            return f"BMD - Pondération {weighting_percent}%"
+        elif segment == 'etablissement_credit':
+            return f"Établissement de crédit note {note_externe} - Pondération {weighting_percent}%"
+        elif segment == 'entreprise':
+            return f"Entreprise note {note_externe} - Pondération {weighting_percent}%"
+        elif segment == 'tpe':
+            return f"Très petite entreprise - Pondération {weighting_percent}%"
+        elif segment == 'particulier':
+            return f"Particulier - Pondération {weighting_percent}%"
+        elif segment == 'immobilier':
+            return f"Crédit immobilier - Pondération {weighting_percent}%"
+        else:
+            return f"Autre contrepartie - Pondération {weighting_percent}%"
     
     def _calculate_sovereign_weighting(self, row):
         """Calcul pondération créances souveraines"""
@@ -286,8 +323,7 @@ class RWACalculator:
             }
         }
         
-        category_weights = rating_weights.get(category, rating_weights['enterprise'])
-        return category_weights.get(rating, category_weights.get('UNRATED', 1.0))
+        return rating_weights.get(category, {}).get(rating, 1.0)
     
     def _get_short_term_rating_weighting(self, rating):
         """Pondération pour créances à court terme"""

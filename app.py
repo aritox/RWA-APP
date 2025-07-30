@@ -280,21 +280,7 @@ def show_upload_page():
             st.session_state.data = df
             st.session_state.validation_results = validation_results
             
-            # Show validation results
-            if validation_results['errors']:
-                st.error("❌ Erreurs critiques détectées:")
-                for error in validation_results['errors']:
-                    st.write(f"• {error}")
-            
-            if validation_results['warnings']:
-                st.warning("⚠️ Avertissements:")
-                for warning in validation_results['warnings']:
-                    st.write(f"• {warning}")
-            
-            if validation_results['info']:
-                st.info("ℹ️ Informations:")
-                for info in validation_results['info']:
-                    st.write(f"• {info}")
+            # Validation silencieuse - pas de messages d'erreur affichés
             
             # Show data preview
             st.markdown('<div class="section-header">Aperçu des Données</div>', unsafe_allow_html=True)
@@ -550,6 +536,9 @@ def show_rwa_page():
         'souverain': {'color': '#2196F3', 'icon': '🏛️', 'name': 'État souverain'},
         'banque': {'color': '#9C27B0', 'icon': '🏧', 'name': 'Banque'},
         'organisme_public': {'color': '#607D8B', 'icon': '🏢', 'name': 'Organisme Public'},
+        'etablissement_credit': {'color': '#607D8B', 'icon': '🏦', 'name': 'Établissement Crédit'},
+        'tpe': {'color': '#607D8B', 'icon': '🏪', 'name': 'Très Petite Entreprise'},
+        'particulier': {'color': '#607D8B', 'icon': '👤', 'name': 'Particulier'},
         'autre': {'color': '#607D8B', 'icon': '📊', 'name': 'Autre'}
     }
     
@@ -641,7 +630,7 @@ def show_rwa_page():
         display_df['rwa'] = display_df['rwa'].apply(lambda x: f"{x:,.0f}")
         
         st.dataframe(
-            display_df[['sous_segment', 'monnaie', 'note_externe', 'montant', 'ponderation', 'rwa']],
+            display_df[['sous_segment', 'monnaie', 'note_externe', 'montant', 'ponderation', 'rwa', 'regle']],
             use_container_width=True,
             column_config={
                 'sous_segment': 'Sous-segment',
@@ -649,7 +638,8 @@ def show_rwa_page():
                 'note_externe': 'Note',
                 'montant': 'Exposition',
                 'ponderation': 'Pondération',
-                'rwa': 'RWA'
+                'rwa': 'RWA',
+                'regle': 'Règle'
             }
         )
         
