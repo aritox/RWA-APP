@@ -621,7 +621,7 @@ def show_rwa_page():
             </div>
             """, unsafe_allow_html=True)
         
-        # Detailed table
+        # Detailed table with segment-specific variables
         st.markdown("### Détail par Exposition")
         
         # Format the detailed table
@@ -630,10 +630,120 @@ def show_rwa_page():
         display_df['ponderation'] = display_df['ponderation'].apply(lambda x: f"{x:.0%}")
         display_df['rwa'] = display_df['rwa'].apply(lambda x: f"{x:,.0f}")
         
-        st.dataframe(
-            display_df[['sous_segment', 'monnaie', 'note_externe', 'montant', 'ponderation', 'rwa', 'regle']],
-            use_container_width=True,
-            column_config={
+        # Show different columns based on segment type
+        if selected_segment == 'souverain':
+            columns_to_show = ['sous_segment', 'monnaie', 'montant', 'note_externe', 'note_pmae', 'ponderation', 'rwa', 'regle']
+            column_config = {
+                'sous_segment': 'Sous-segment',
+                'monnaie': 'Monnaie', 
+                'montant': 'Montant',
+                'note_externe': 'Note Externe',
+                'note_pmae': 'Note PMAE',
+                'ponderation': 'Pondération',
+                'rwa': 'RWA',
+                'regle': 'Règle'
+            }
+        elif selected_segment == 'organisme_public':
+            columns_to_show = ['sous_segment', 'monnaie', 'montant', 'remboursement_prevu_budget', 'creance_souffrance', 'note_externe', 'ponderation', 'rwa', 'regle']
+            column_config = {
+                'sous_segment': 'Sous-segment',
+                'monnaie': 'Monnaie',
+                'montant': 'Montant',
+                'remboursement_prevu_budget': 'Remboursement Prévu Budget',
+                'creance_souffrance': 'Créance Souffrance',
+                'note_externe': 'Note Externe',
+                'ponderation': 'Pondération',
+                'rwa': 'RWA',
+                'regle': 'Règle'
+            }
+        elif selected_segment == 'bmd':
+            columns_to_show = ['sous_segment', 'montant', 'note_externe', 'ponderation', 'rwa', 'regle']
+            column_config = {
+                'sous_segment': 'Sous-segment',
+                'montant': 'Montant',
+                'note_externe': 'Note Externe',
+                'ponderation': 'Pondération',
+                'rwa': 'RWA',
+                'regle': 'Règle'
+            }
+        elif selected_segment == 'etablissement_credit':
+            columns_to_show = ['sous_segment', 'monnaie', 'montant', 'echeance_initiale', 'note_externe', 'note_inf_1an', 'note_inf_3mois', 'ponderation', 'rwa', 'regle']
+            column_config = {
+                'sous_segment': 'Sous-segment',
+                'monnaie': 'Monnaie',
+                'montant': 'Montant',
+                'echeance_initiale': 'Échéance Initiale',
+                'note_externe': 'Note Externe',
+                'note_inf_1an': 'Note Inf 1an',
+                'note_inf_3mois': 'Note Inf 3mois',
+                'ponderation': 'Pondération',
+                'rwa': 'RWA',
+                'regle': 'Règle'
+            }
+        elif selected_segment == 'entreprise':
+            columns_to_show = ['sous_segment', 'monnaie', 'montant', 'echeance', 'note_sup_1an', 'note_inf_1an', 'accord_bank_maghrib', 'appart_grpe', 'dette_banc', 'ponderation', 'rwa', 'regle']
+            column_config = {
+                'sous_segment': 'Sous-segment',
+                'monnaie': 'Monnaie',
+                'montant': 'Montant',
+                'echeance': 'Échéance',
+                'note_sup_1an': 'Note Sup 1an',
+                'note_inf_1an': 'Note Inf 1an',
+                'accord_bank_maghrib': 'Accord Bank Maghrib',
+                'appart_grpe': 'Appartient Groupe',
+                'dette_banc': 'Dette Bancaire',
+                'ponderation': 'Pondération',
+                'rwa': 'RWA',
+                'regle': 'Règle'
+            }
+        elif selected_segment == 'tpe':
+            columns_to_show = ['sous_segment', 'montant', 'monnaie', 'ponderation', 'rwa', 'regle']
+            column_config = {
+                'sous_segment': 'Sous-segment',
+                'montant': 'Montant',
+                'monnaie': 'Monnaie',
+                'ponderation': 'Pondération',
+                'rwa': 'RWA',
+                'regle': 'Règle'
+            }
+        elif selected_segment == 'particulier':
+            columns_to_show = ['sous_segment', 'montant', 'monnaie', 'montant_creance', 'garanti_hypotheque', 'ponderation', 'rwa', 'regle']
+            column_config = {
+                'sous_segment': 'Sous-segment',
+                'montant': 'Montant',
+                'monnaie': 'Monnaie',
+                'montant_creance': 'Montant Créance',
+                'garanti_hypotheque': 'Garanti Hypothèque',
+                'ponderation': 'Pondération',
+                'rwa': 'RWA',
+                'regle': 'Règle'
+            }
+        elif selected_segment == 'pret':
+            columns_to_show = ['sous_segment', 'montant', 'usage', 'convention_etat', 'valeur_bien_hypotheque', 'ponderation', 'rwa', 'regle']
+            column_config = {
+                'sous_segment': 'Sous-segment',
+                'montant': 'Montant',
+                'usage': 'Usage',
+                'convention_etat': 'Convention État',
+                'valeur_bien_hypotheque': 'Valeur Bien Hypothèque',
+                'ponderation': 'Pondération',
+                'rwa': 'RWA',
+                'regle': 'Règle'
+            }
+        elif selected_segment == 'creance_souffrance':
+            columns_to_show = ['sous_segment', 'valeur_encours_creance', 'provision_constitue', 'ponderation', 'rwa', 'regle']
+            column_config = {
+                'sous_segment': 'Sous-segment',
+                'valeur_encours_creance': 'Valeur Encours Créance',
+                'provision_constitue': 'Provision Constituée',
+                'ponderation': 'Pondération',
+                'rwa': 'RWA',
+                'regle': 'Règle'
+            }
+        else:
+            # Default columns for unknown segments
+            columns_to_show = ['sous_segment', 'monnaie', 'note_externe', 'montant', 'ponderation', 'rwa', 'regle']
+            column_config = {
                 'sous_segment': 'Sous-segment',
                 'monnaie': 'Monnaie',
                 'note_externe': 'Note',
@@ -642,6 +752,14 @@ def show_rwa_page():
                 'rwa': 'RWA',
                 'regle': 'Règle'
             }
+        
+        # Filter columns that actually exist in the dataframe
+        available_columns = [col for col in columns_to_show if col in display_df.columns]
+        
+        st.dataframe(
+            display_df[available_columns],
+            use_container_width=True,
+            column_config=column_config
         )
         
         # Summary for selected segment
