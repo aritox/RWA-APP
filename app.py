@@ -318,7 +318,44 @@ def show_upload_page():
                         st.rerun()
             
         except Exception as e:
-            st.error(f"❌ Erreur lors du chargement du fichier: {str(e)}")
+            error_msg = str(e)
+            if "str accessor" in error_msg:
+                st.error("❌ Erreur de format de données: Votre fichier contient des valeurs mixtes dans certaines colonnes. L'application va automatiquement nettoyer les données.")
+                st.info("💡 Conseil: Assurez-vous que les colonnes texte contiennent uniquement du texte et les colonnes numériques uniquement des nombres.")
+            else:
+                st.error(f"❌ Erreur lors du chargement du fichier: {error_msg}")
+            
+            # Try to load the file anyway but with more robust handling
+            try:
+                if uploaded_file.name.endswith('.xlsx'):
+                    df = pd.read_excel(uploaded_file)
+                else:
+                    df = pd.read_csv(uploaded_file)
+                
+                st.warning("🔄 Tentative de récupération des données en cours...")
+                
+                # Store raw data and show preview
+                st.session_state.data = df
+                st.info("✅ Données récupérées avec succès! Veuillez procéder à l'analyse.")
+                
+                # Show data preview
+                st.markdown('<div class="section-header">Aperçu des Données</div>', unsafe_allow_html=True)
+                st.dataframe(df.head(10), use_container_width=True)
+                
+                col1, col2 = st.columns(2)
+                with col1:
+                    if st.button("📊 Analyser les données", type="primary"):
+                        st.session_state.page = 'analysis'
+                        st.rerun()
+                
+                with col2:
+                    if st.button("🧮 Calculer RWA directement", type="secondary"):
+                        st.session_state.page = 'rwa'
+                        st.rerun()
+                        
+            except Exception as e2:
+                st.error(f"❌ Impossible de charger le fichier: {str(e2)}")
+                st.info("💡 Vérifiez que votre fichier est bien formaté et contient les colonnes requises.")
 
 def show_analysis_page():
     if st.session_state.data is None:
@@ -431,11 +468,19 @@ def show_rwa_page():
     
     st.markdown('<div class="section-header">Calcul des Actifs Pondérés par les Risques (RWA)</div>', unsafe_allow_html=True)
     
-    # Calculate RWA if not already done
+    # Calculate RWA if not already done  
     if st.session_state.rwa_results is None:
         with st.spinner("Calcul des RWA en cours..."):
-            rwa_results = calculator.calculate_rwa(df)
-            st.session_state.rwa_results = rwa_results
+            try:
+                # Clean data first to avoid str accessor errors
+                cleaned_df = validator.clean_dataframe(df)
+                rwa_results = calculator.calculate_rwa(cleaned_df)
+                st.session_state.rwa_results = rwa_results
+                st.session_state.data = cleaned_df  # Update with cleaned data
+            except Exception as e:
+                st.error(f"❌ Erreur lors du calcul RWA: {str(e)}")
+                st.info("💡 Vérification des données en cours...")
+                return
     
     rwa_results = st.session_state.rwa_results
     results_df = rwa_results['results_df']
@@ -483,7 +528,7 @@ def show_rwa_page():
     st.markdown('<div class="section-header">Analyse par Type de Contrepartie</div>', unsafe_allow_html=True)
     st.markdown('<p style="color: #666; margin-bottom: 2rem;">Cliquez sur un type pour voir l\'analyse détaillée</p>', unsafe_allow_html=True)
     
-    # Create counterparty cards in a grid layout
+    # Create colored counterparty cards exactly like the reference image
     counterparty_data = []
     for segment, analysis in rwa_results['counterparty_analysis'].items():
         counterparty_data.append({
@@ -494,27 +539,60 @@ def show_rwa_page():
             'avg_weighting': analysis['avg_weighting']
         })
     
-    # Sort by total exposure
+    # Sort by total exposure to match the reference layout
     counterparty_data.sort(key=lambda x: x['total_exposure'], reverse=True)
     
-    # Create grid of cards
-    cols = st.columns(3)
-    colors = ['#4CAF50', '#607D8B', '#607D8B', '#2196F3', '#9C27B0', '#607D8B', '#607D8B']
+    # Define colors and icons exactly like in the reference image
+    segment_config = {
+        'entreprise': {'color': '#4CAF50', 'icon': '🏢', 'name': 'Entreprise'},
+        'bmd': {'color': '#607D8B', 'icon': '🏦', 'name': 'BMD'},
+        'immobilier': {'color': '#607D8B', 'icon': '🏠', 'name': 'Immobilier'},
+        'souverain': {'color': '#2196F3', 'icon': '🏛️', 'name': 'État souverain'},
+        'banque': {'color': '#9C27B0', 'icon': '🏧', 'name': 'Banque'},
+        'organisme_public': {'color': '#607D8B', 'icon': '🏢', 'name': 'Organisme Public'},
+        'autre': {'color': '#607D8B', 'icon': '📊', 'name': 'Autre'}
+    }
     
-    for i, cp_data in enumerate(counterparty_data):
-        col_idx = i % 3
-        color = colors[i % len(colors)]
+    # Create 3x3 grid layout
+    rows = [counterparty_data[i:i+3] for i in range(0, len(counterparty_data), 3)]
+    
+    for row in rows:
+        cols = st.columns(3)
         
-        with cols[col_idx]:
-            # Create clickable card
-            card_key = f"card_{cp_data['segment']}"
+        for i, cp_data in enumerate(row):
+            segment = cp_data['segment']
+            config = segment_config.get(segment, segment_config['autre'])
             
-            if st.button(
-                f"🏢\n{cp_data['segment'].title()}\n{cp_data['count']} expositions\n{cp_data['total_exposure']:,.0f} MAD",
-                key=card_key,
-                help=f"Cliquez pour voir les détails de {cp_data['segment']}"
-            ):
-                st.session_state.selected_segment = cp_data['segment']
+            with cols[i]:
+                # Create styled card matching reference image exactly
+                st.markdown(f"""
+                <div style="
+                    background: {config['color']};
+                    color: white;
+                    padding: 1.5rem;
+                    border-radius: 10px;
+                    text-align: center;
+                    margin-bottom: 1rem;
+                    cursor: pointer;
+                    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+                    transition: transform 0.2s ease;
+                    min-height: 120px;
+                    display: flex;
+                    flex-direction: column;
+                    justify-content: center;
+                ">
+                    <div style="font-size: 2rem; margin-bottom: 0.5rem;">{config['icon']}</div>
+                    <div style="font-weight: bold; font-size: 1.1rem; margin-bottom: 0.3rem;">{config['name']}</div>
+                    <div style="font-size: 0.9rem; opacity: 0.9;">{cp_data['count']} expositions</div>
+                    <div style="font-size: 1.2rem; font-weight: bold; margin-top: 0.5rem;">
+                        {cp_data['total_exposure']:,.0f} MAD
+                    </div>
+                </div>
+                """, unsafe_allow_html=True)
+                
+                # Add invisible button for interaction
+                if st.button(f"Détails {segment}", key=f"btn_{segment}", help=f"Voir détails de {config['name']}"):
+                    st.session_state.selected_segment = segment
     
     # Detailed analysis for selected segment
     if 'selected_segment' in st.session_state:

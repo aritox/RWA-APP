@@ -78,8 +78,10 @@ class DataValidator:
         
         for col in boolean_columns:
             if col in df.columns:
-                valid_bool_values = [True, False, 1, 0, 'True', 'False', 'true', 'false', 'oui', 'non']
-                invalid_bool = df[~df[col].isin(valid_bool_values)]
+                valid_bool_values = [True, False, 1, 0, '1', '0', 'True', 'False', 'true', 'false', 'oui', 'non', 'Oui', 'Non', 'OUI', 'NON']
+                # Convertir en string pour la comparaison et gérer les valeurs nulles
+                df_col_str = df[col].astype(str)
+                invalid_bool = df[(~df_col_str.isin([str(x) for x in valid_bool_values])) & (df[col].notna()) & (df_col_str != 'nan')]
                 if not invalid_bool.empty:
                     errors.append(f"Valeurs booléennes invalides dans {col}: {len(invalid_bool)} lignes")
         
@@ -91,36 +93,42 @@ class DataValidator:
         
         # Validation des segments
         if 'segment' in df.columns:
-            invalid_segments = df[~df['segment'].str.lower().isin(self.valid_segments)]
+            # Convertir en string et gérer les valeurs nulles
+            df_segment = df['segment'].astype(str).str.lower()
+            invalid_segments = df[~df_segment.isin(self.valid_segments) & (df['segment'].notna())]
             if not invalid_segments.empty:
-                unique_invalid = invalid_segments['segment'].unique()
+                unique_invalid = [str(x) for x in invalid_segments['segment'].unique() if pd.notna(x)]
                 warnings.append(f"Segments non reconnus: {', '.join(unique_invalid)}")
         
         # Validation des notations
         rating_columns = ['note_externe', 'note_pmae', 'note_inf_1_an', 'note_sup_1_an']
         for col in rating_columns:
             if col in df.columns:
-                invalid_ratings = df[
-                    ~df[col].str.upper().isin(self.valid_ratings) & 
-                    df[col].notna() & 
-                    (df[col] != '')
-                ]
+                # Convertir en string et nettoyer
+                df_rating = df[col].astype(str).str.upper()
+                mask = (~df_rating.isin(self.valid_ratings)) & (df[col].notna()) & (df[col].astype(str) != '') & (df[col].astype(str) != 'nan')
+                invalid_ratings = df[mask]
                 if not invalid_ratings.empty:
-                    unique_invalid = invalid_ratings[col].unique()
-                    warnings.append(f"Notations non reconnues dans {col}: {', '.join(unique_invalid)}")
+                    unique_invalid = [str(x) for x in invalid_ratings[col].unique() if pd.notna(x) and str(x) != 'nan']
+                    if unique_invalid:
+                        warnings.append(f"Notations non reconnues dans {col}: {', '.join(unique_invalid)}")
         
         # Validation des devises
         if 'monnaie' in df.columns:
-            invalid_currencies = df[~df['monnaie'].str.upper().isin(self.valid_currencies)]
+            df_currency = df['monnaie'].astype(str).str.upper()
+            invalid_currencies = df[~df_currency.isin(self.valid_currencies) & (df['monnaie'].notna())]
             if not invalid_currencies.empty:
-                unique_invalid = invalid_currencies['monnaie'].unique()
-                warnings.append(f"Devises non reconnues: {', '.join(unique_invalid)}")
+                unique_invalid = [str(x) for x in invalid_currencies['monnaie'].unique() if pd.notna(x) and str(x) != 'nan']
+                if unique_invalid:
+                    warnings.append(f"Devises non reconnues: {', '.join(unique_invalid)}")
         
         # Validation des échéances
         maturity_columns = ['echeance_initiale', 'echeance']
         for col in maturity_columns:
             if col in df.columns:
-                invalid_maturities = df[~df[col].isin(self.valid_maturities)]
+                # Gérer les valeurs nulles et convertir en string si nécessaire
+                df_maturity = df[col].astype(str)
+                invalid_maturities = df[(~df_maturity.isin(self.valid_maturities)) & (df[col].notna()) & (df_maturity != 'nan')]
                 if not invalid_maturities.empty:
                     warnings.append(f"Échéances non reconnues dans {col}: {len(invalid_maturities)} lignes")
         
@@ -178,19 +186,21 @@ class DataValidator:
         
         # Standardisation des segments
         if 'segment' in df_clean.columns:
-            df_clean['segment'] = df_clean['segment'].str.lower().str.strip()
+            df_clean['segment'] = df_clean['segment'].astype(str).str.lower().str.strip()
+            df_clean['segment'] = df_clean['segment'].replace('nan', pd.NA)
         
         # Standardisation des notations
         rating_columns = ['note_externe', 'note_pmae', 'note_inf_1_an', 'note_sup_1_an']
         for col in rating_columns:
             if col in df_clean.columns:
-                df_clean[col] = df_clean[col].str.upper().str.strip()
-                df_clean[col] = df_clean[col].replace('', 'UNRATED')
+                df_clean[col] = df_clean[col].astype(str).str.upper().str.strip()
+                df_clean[col] = df_clean[col].replace(['', 'nan', 'NaN', 'None'], 'UNRATED')
                 df_clean[col] = df_clean[col].fillna('UNRATED')
         
         # Standardisation des devises
         if 'monnaie' in df_clean.columns:
-            df_clean['monnaie'] = df_clean['monnaie'].str.upper().str.strip()
+            df_clean['monnaie'] = df_clean['monnaie'].astype(str).str.upper().str.strip()
+            df_clean['monnaie'] = df_clean['monnaie'].replace('nan', pd.NA)
         
         # Conversion des valeurs booléennes
         boolean_columns = ['remboursement_budget', 'creance_souffrance', 
@@ -199,10 +209,12 @@ class DataValidator:
         
         for col in boolean_columns:
             if col in df_clean.columns:
-                df_clean[col] = df_clean[col].map({
-                    True: True, False: False, 1: True, 0: False,
+                # Convertir d'abord en string puis mapper
+                df_clean[col] = df_clean[col].astype(str).map({
                     'True': True, 'False': False, 'true': True, 'false': False,
-                    'oui': True, 'non': False, 'Oui': True, 'Non': False
+                    '1': True, '0': False, 'oui': True, 'non': False, 
+                    'Oui': True, 'Non': False, 'OUI': True, 'NON': False,
+                    'nan': False, '': False
                 }).fillna(False)
         
         # Nettoyage des valeurs numériques
