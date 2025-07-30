@@ -42,14 +42,14 @@ class RWACalculator:
     def _initialize_pmae_weights(self):
         """Table de pondération PMAE (Primes Minimales d'Assurance à l'Exportation)"""
         return {
-            '0': 0.00,
-            '1': 0.00,
-            '2': 0.20,
-            '3': 0.50,
-            '4': 1.00,
-            '5': 1.00,
-            '6': 1.00,
-            '7': 1.50
+            '0': 0.00,  # 0-1 = 0%
+            '1': 0.00,  # 0-1 = 0%
+            '2': 0.20,  # 2 = 20%
+            '3': 0.50,  # 3 = 50%
+            '4': 1.00,  # 4 à 6 = 100%
+            '5': 1.00,  # 4 à 6 = 100%
+            '6': 1.00,  # 4 à 6 = 100%
+            '7': 1.50   # 7 = 150%
         }
     
     def get_segment_variables(self, segment):
@@ -239,22 +239,37 @@ class RWACalculator:
         sous_segment = str(row.get('sous_segment', '')).lower()
         monnaie = str(row.get('monnaie', '')).upper()
         
-        # 1) État marocain et BAM = 0% SEULEMENT en dirhams
+        # 1) Pondération de 0% appliquée aux créances sur l'État marocain et Bank Al-Maghrib
+        # libellées et financées en dirhams, ainsi qu'aux créances sur BIS, FMI, BCE, Commission Européenne
         if ('maroc' in sous_segment or 'bam' in sous_segment or 'bank al-maghrib' in sous_segment) and monnaie == 'MAD':
             return 0.0
         
-        # 2) Organismes internationaux spécifiques = 0% toujours
         if any(org in sous_segment for org in ['bis', 'banque des règlements internationaux', 'fonds monétaire international', 'fmi', 'banque centrale européenne', 'bce', 'commission européenne']):
             return 0.0
         
-        # 3) Notation PMAE si disponible
+        # 2) Table de pondération selon notation externe
+        note_externe = str(row.get('note_externe', '')).upper().strip()
+        
+        if any(rating in note_externe for rating in ['AAA', 'AA+', 'AA', 'AA-']):
+            return 0.0  # AAA à AA- = 0%
+        elif any(rating in note_externe for rating in ['A+', 'A', 'A-']):
+            return 0.20  # A+ à A- = 20%
+        elif any(rating in note_externe for rating in ['BBB+', 'BBB', 'BBB-']):
+            return 0.50  # BBB+ à BBB- = 50%
+        elif any(rating in note_externe for rating in ['BB+', 'BB', 'BB-']):
+            return 1.00  # BB+ à BB- = 100%
+        elif any(rating in note_externe for rating in ['B+', 'B', 'B-']):
+            return 1.00  # B+ à B- = 100%
+        elif note_externe and any(rating in note_externe for rating in ['CCC', 'CC', 'C', 'D']):
+            return 1.50  # Inférieure à B- = 150%
+        
+        # 3) Notation PMAE si pas de notation externe
         note_pmae = str(row.get('note_pmae', '')).strip()
         if note_pmae and note_pmae != '':
             return self.pmae_weights.get(note_pmae, 1.0)
         
-        # 4) Notation externe pour les autres États
-        note_externe = str(row.get('note_externe', ''))
-        return self._get_rating_weighting(note_externe, 'general')
+        # 4) Pas de notation = 100%
+        return 1.00
 
     def _calculate_public_org_weighting(self, row):
         """B) Créances sur les organismes publics"""
