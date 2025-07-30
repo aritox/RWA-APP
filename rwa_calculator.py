@@ -247,26 +247,32 @@ class RWACalculator:
         if any(org in sous_segment for org in ['bis', 'banque des règlements internationaux', 'fonds monétaire international', 'fmi', 'banque centrale européenne', 'bce', 'commission européenne']):
             return 0.0
         
-        # 2) Table de pondération selon notation externe
+        # 2) Vérifier d'abord s'il y a une notation PMAE valide
+        note_pmae = str(row.get('note_pmae', '')).strip()
+        if note_pmae and note_pmae != '' and note_pmae != 'NaN' and note_pmae.lower() != 'nan':
+            try:
+                # Convertir en entier pour matcher avec la table PMAE
+                pmae_value = str(int(float(note_pmae)))
+                return self.pmae_weights.get(pmae_value, 1.0)
+            except (ValueError, TypeError):
+                pass
+        
+        # 3) Sinon, table de pondération selon notation externe
         note_externe = str(row.get('note_externe', '')).upper().strip()
         
-        if any(rating in note_externe for rating in ['AAA', 'AA+', 'AA', 'AA-']):
-            return 0.0  # AAA à AA- = 0%
-        elif any(rating in note_externe for rating in ['A+', 'A', 'A-']):
-            return 0.20  # A+ à A- = 20%
-        elif any(rating in note_externe for rating in ['BBB+', 'BBB', 'BBB-']):
-            return 0.50  # BBB+ à BBB- = 50%
-        elif any(rating in note_externe for rating in ['BB+', 'BB', 'BB-']):
-            return 1.00  # BB+ à BB- = 100%
-        elif any(rating in note_externe for rating in ['B+', 'B', 'B-']):
-            return 1.00  # B+ à B- = 100%
-        elif note_externe and any(rating in note_externe for rating in ['CCC', 'CC', 'C', 'D']):
-            return 1.50  # Inférieure à B- = 150%
-        
-        # 3) Notation PMAE si pas de notation externe
-        note_pmae = str(row.get('note_pmae', '')).strip()
-        if note_pmae and note_pmae != '':
-            return self.pmae_weights.get(note_pmae, 1.0)
+        if note_externe and note_externe != 'NAN' and note_externe.lower() != 'nan':
+            if any(rating in note_externe for rating in ['AAA', 'AA+', 'AA', 'AA-']):
+                return 0.0  # AAA à AA- = 0%
+            elif any(rating in note_externe for rating in ['A+', 'A', 'A-']):
+                return 0.20  # A+ à A- = 20%
+            elif any(rating in note_externe for rating in ['BBB+', 'BBB', 'BBB-']):
+                return 0.50  # BBB+ à BBB- = 50%
+            elif any(rating in note_externe for rating in ['BB+', 'BB', 'BB-']):
+                return 1.00  # BB+ à BB- = 100%
+            elif any(rating in note_externe for rating in ['B+', 'B', 'B-']):
+                return 1.00  # B+ à B- = 100%
+            elif any(rating in note_externe for rating in ['CCC', 'CC', 'C', 'D']):
+                return 1.50  # Inférieure à B- = 150%
         
         # 4) Pas de notation = 100%
         return 1.00
