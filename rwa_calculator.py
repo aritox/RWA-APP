@@ -42,10 +42,13 @@ class RWACalculator:
     def _initialize_pmae_weights(self):
         """Table de pondération PMAE (Primes Minimales d'Assurance à l'Exportation)"""
         return {
-            '0-1': 0.00,
+            '0': 0.00,
+            '1': 0.00,
             '2': 0.20,
             '3': 0.50,
-            '4 à 6': 1.00,
+            '4': 1.00,
+            '5': 1.00,
+            '6': 1.00,
             '7': 1.50
         }
     
@@ -240,14 +243,16 @@ class RWACalculator:
         if ('maroc' in sous_segment or 'bam' in sous_segment or 'bank al-maghrib' in sous_segment) and monnaie == 'MAD':
             return 0.0
         
-        # 2) Notation PMAE si disponible
+        # 2) Organismes internationaux spécifiques = 0% toujours
+        if any(org in sous_segment for org in ['bis', 'banque des règlements internationaux', 'fonds monétaire international', 'fmi', 'banque centrale européenne', 'bce', 'commission européenne']):
+            return 0.0
+        
+        # 3) Notation PMAE si disponible
         note_pmae = str(row.get('note_pmae', '')).strip()
         if note_pmae and note_pmae != '':
-            for pmae_range, weight in self.pmae_weights.items():
-                if note_pmae in pmae_range:
-                    return weight
+            return self.pmae_weights.get(note_pmae, 1.0)
         
-        # 3) Notation externe pour les autres États
+        # 4) Notation externe pour les autres États
         note_externe = str(row.get('note_externe', ''))
         return self._get_rating_weighting(note_externe, 'general')
 
@@ -268,14 +273,30 @@ class RWACalculator:
 
     def _calculate_bmd_weighting(self, row):
         """C) Créances sur les BMD"""
-        # Liste arrêtée par Bank Al-Maghrib = 0%
-        sous_segment = str(row.get('sous_segment', '')).lower()
-        if 'bank al-maghrib' in sous_segment or row.get('accord_bank_maghrib', False):
+        # BMD listés par Bank Al-Maghrib = 0%
+        if row.get('accord_bank_maghrib', False):
             return 0.0
         
-        # Autres BMD selon notation externe
-        note_externe = str(row.get('note_externe', ''))
-        return self._get_rating_weighting(note_externe, 'general')
+        # Autres BMD selon notation externe avec table spécifique
+        note_externe = str(row.get('note_externe', '')).upper().strip()
+        
+        # Table de pondération spécifique pour BMD
+        if any(rating in note_externe for rating in ['AAA', 'AA+']):
+            return 0.20
+        elif any(rating in note_externe for rating in ['AA', 'AA-']):
+            return 0.20
+        elif any(rating in note_externe for rating in ['A+', 'A', 'A-']):
+            return 0.50
+        elif any(rating in note_externe for rating in ['BBB+', 'BBB', 'BBB-']):
+            return 0.50
+        elif any(rating in note_externe for rating in ['BB+', 'BB', 'BB-']):
+            return 1.00
+        elif any(rating in note_externe for rating in ['B+', 'B', 'B-']):
+            return 1.00
+        elif 'B-' in note_externe or any(rating in note_externe for rating in ['CCC', 'CC', 'C', 'D']):
+            return 1.50
+        else:
+            return 0.50  # Pas de notation = 50%
 
     def _calculate_credit_institution_weighting(self, row):
         """D) Créances sur établissements de crédit"""
@@ -332,8 +353,8 @@ class RWACalculator:
         return 1.0  # Défaut 100%
 
     def _calculate_tpe_weighting(self, row):
-        """G) Créances sur TPE"""
-        return 0.75  # 75% fixe
+        """G) Créances sur TPE - Très Petite Entreprise"""
+        return 0.75  # 75% FIXE selon règles Bank Al-Maghrib
 
     def _calculate_individual_weighting_method(self, row):
         """G) Créances sur particuliers"""

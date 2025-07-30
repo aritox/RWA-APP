@@ -109,4 +109,13 @@ The application is designed as a **single-server deployment** suitable for:
 5. **Regulatory Compliance**: Built-in validation ensures adherence to Bank Al-Maghrib RWA calculation standards
 6. **Comprehensive Reporting**: PDF generation provides audit-trail and regulatory reporting capabilities
 
+## Recent Changes
+
+- **30/07/2025**: Correction critique des règles RWA selon spécifications exactes utilisateur
+  - TPE: Pondération fixe 75% (suppression des conditions variables)
+  - Souverain: BIS, FMI, BCE, Commission Européenne = 0% systématiquement
+  - BMD: Table de pondération spécifique selon notation externe
+  - PMAE: Correction des seuils (0-1=0%, 2=20%, 3=50%, 4-6=100%, 7=150%)
+  - Variables spécifiques par segment intégrées dans l'affichage
+
 The system prioritizes regulatory accuracy, user experience, and maintainability over complex distributed architecture, making it ideal for financial institutions requiring reliable RWA calculations with professional reporting capabilities.
