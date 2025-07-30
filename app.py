@@ -454,15 +454,16 @@ def show_rwa_page():
     
     st.markdown('<div class="section-header">Calcul des Actifs Pondérés par les Risques (RWA)</div>', unsafe_allow_html=True)
     
-    # Calculate RWA if not already done  
-    if st.session_state.rwa_results is None:
-        with st.spinner("Calcul des RWA en cours..."):
+    # Force recalcul if button clicked or no results yet
+    if st.session_state.rwa_results is None or st.button("🔄 Recalculer RWA", help="Recalculer avec les dernières règles"):
+        with st.spinner("Calcul des RWA en cours avec les règles corrigées..."):
             try:
                 # Clean data first to avoid str accessor errors
                 cleaned_df = validator.clean_dataframe(df)
                 rwa_results = calculator.calculate_rwa(cleaned_df)
                 st.session_state.rwa_results = rwa_results
                 st.session_state.data = cleaned_df  # Update with cleaned data
+                st.success("✅ Calcul RWA terminé avec les règles de monnaie corrigées!")
             except Exception as e:
                 st.error(f"❌ Erreur lors du calcul RWA: {str(e)}")
                 st.info("💡 Vérification des données en cours...")

@@ -156,10 +156,11 @@ class RWACalculator:
         weighting_percent = int(weighting * 100)
         
         if segment == 'souverain':
-            if 'maroc' in sous_segment or 'bam' in sous_segment:
-                return f"État souverain note {note_externe} - Pondération {weighting_percent}%"
+            monnaie = row.get('monnaie', 'MAD')
+            if ('maroc' in sous_segment or 'bam' in sous_segment) and str(monnaie).upper() == 'MAD':
+                return f"État souverain {sous_segment} en MAD - Pondération {weighting_percent}%"
             else:
-                return f"État souverain note {note_externe} - Pondération {weighting_percent}%"
+                return f"État souverain note {note_externe} en {monnaie} - Pondération {weighting_percent}%"
         elif segment == 'organisme_public':
             return f"Organisme public - Pondération {weighting_percent}%"
         elif segment == 'bmd':
@@ -181,12 +182,15 @@ class RWACalculator:
         """Calcul pondération créances souveraines"""
         sous_segment_raw = row.get('sous_segment', '')
         sous_segment = str(sous_segment_raw).lower() if pd.notna(sous_segment_raw) else ''
+        monnaie_raw = row.get('monnaie', '')
+        monnaie = str(monnaie_raw).upper() if pd.notna(monnaie_raw) else ''
         
-        # État marocain et BAM = 0%
-        if 'maroc' in sous_segment or 'bam' in sous_segment:
+        # État marocain et BAM = 0% SEULEMENT si monnaie = MAD
+        if ('maroc' in sous_segment or 'bam' in sous_segment) and monnaie == 'MAD':
             return 0.0
         
-        # Autres États selon notation externe
+        # Pour toutes les autres situations (États étrangers ou État marocain en devise)
+        # On applique la pondération selon la notation externe
         note_externe_raw = row.get('note_externe', '')
         note_externe = str(note_externe_raw).upper() if pd.notna(note_externe_raw) else 'UNRATED'
         return self._get_rating_weighting(note_externe, 'sovereign')
